@@ -1,0 +1,42 @@
+{
+  "name": "@dashkite/metis",
+  "version": "0.0.0",
+  "description": "A practical CoffeeScript rules engine",
+  "keywords": [],
+  "homepage": "https://github.com/dashkite/metis#readme",
+  "bugs": {
+    "url": "https://github.com/dashkite/metis/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dashkite/metis.git"
+  },
+  "license": "SEE LICENSE IN LICENSE.md",
+  "author": "Daniel Yoder",
+  "exports": {
+    ".": {
+      "browser": "./build/browser/src/index.js",
+      "node": "./build/node/src/index.js"
+    }
+  },
+  "main": "build/node/src/index.js",
+  "files": [
+    "build/browser/src",
+    "build/node/src"
+  ],
+  "scripts": {
+    "test": "genie test",
+    "build": "genie build"
+  },
+  "devDependencies": {
+    "@dashkite/amen": "^0.2.0",
+    "@dashkite/amen-console": "^0.0.2",
+    "@dashkite/assert": "^0.1.4",
+    "@dashkite/genie": "link:../genie",
+    "@dashkite/genie-coffee": "link:../genie-coffee"
+  },
+  "dependencies": {
+    "@dashkite/events": "^0.1.0",
+    "@dashkite/joy": "^0.3.16"
+  }
+}
