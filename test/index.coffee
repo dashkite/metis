@@ -41,7 +41,7 @@ Rules.register rules,
 
 do ->
 
-  print await test "Metis Rules Engine", [
+  print await test "Athena Rules Engine", [
 
     test "simple rules", ->
       result = await Rules.run rules, 

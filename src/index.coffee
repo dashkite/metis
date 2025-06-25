@@ -10,6 +10,7 @@ Rule =
     equal: Val.equal
     dump: ( state ) -> state
     clone: structuredClone
+    logger: debug: ->
 
 Rules =
 
@@ -48,14 +49,14 @@ Rules =
       loop
         rule = engine.rules.find ({ conditions }) ->
           conditions.every ({ name, apply }) -> 
-            result = apply state
+            result = apply.call state
             log.debug condition: { name, result }
             result
         if rule?
           log.debug action: rule.action.name
           saved = state
           state = engine.clone state
-          await rule.action.apply state
+          await rule.action.apply.call state
           changed = !( engine.equal saved, state )
           log.debug { changed }
           log.debug 
@@ -78,4 +79,24 @@ Actions =
   register: ( engine, actions ) ->
     engine.actions = { engine.actions..., actions... }
 
-export { Rules, Rule, Conditions, Actions }
+# convenient class interface
+class Athena
+
+  @make: ( options ) -> 
+    Object.assign ( new @ ), 
+      engine: Rules.make options
+
+  conditions: ( dictionary ) ->
+    Conditions.register @engine, dictionary
+
+  actions: ( dictionary ) ->
+    Actions.register @engine, dictionary
+
+  rules: ( dictionary ) ->
+    Rules.register @engine, dictionary
+
+  apply: ( state ) ->
+    Rules.run @engine, state
+
+export default Athena
+export { Rules, Rule, Conditions, Actions, Athena }

@@ -1,15 +1,15 @@
 {
-  "name": "@dashkite/metis",
+  "name": "@dashkite/athena",
   "version": "0.0.0",
   "description": "A practical CoffeeScript rules engine",
   "keywords": [],
-  "homepage": "https://github.com/dashkite/metis#readme",
+  "homepage": "https://github.com/dashkite/athena#readme",
   "bugs": {
-    "url": "https://github.com/dashkite/metis/issues"
+    "url": "https://github.com/dashkite/athena/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dashkite/metis.git"
+    "url": "git+https://github.com/dashkite/athena.git"
   },
   "license": "SEE LICENSE IN LICENSE.md",
   "author": "Daniel Yoder",

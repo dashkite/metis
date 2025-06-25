@@ -1,4 +1,4 @@
-# Metis Rules Engine
+# Athena Rules Engine
 
 *A practical CoffeeScript rules engine*
 
