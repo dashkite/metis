@@ -16,7 +16,7 @@ importers:
         version: 0.3.16
     devDependencies:
       '@dashkite/amen':
-        specifier: ^0.2.0
+        specifier: ^0.2.2
         version: 0.2.2
       '@dashkite/amen-console':
         specifier: ^0.0.2
