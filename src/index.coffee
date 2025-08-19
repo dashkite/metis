@@ -1,6 +1,11 @@
+# import { negate } from "@dashkite/joy/predicate"
 import * as Val from "@dashkite/joy/value"
 import * as Arr from "@dashkite/joy/array"
 import Events from "@dashkite/events"
+
+# OOP-friendly negate
+negate = ( predicate ) -> 
+  ( value ) -> !( predicate.call @, value )
 
 Rule =
   make: ({ conditions, action }) ->
@@ -10,7 +15,6 @@ Rule =
     equal: Val.equal
     dump: ( state ) -> state
     clone: structuredClone
-    logger: debug: ->
 
 Rules =
 
@@ -31,7 +35,11 @@ Rules =
           name: name
           conditions: conditions.map ( name ) ->
             do ({ apply } = {}) ->
+              if ( name.startsWith "!" )
+                name = name[1..]
+                negated = true              
               if ( apply = engine.conditions[ name ])?
+                apply = negate apply if negated
                 { name, apply }
               else
                 throw new Error "unknown condition:
@@ -44,29 +52,21 @@ Rules =
                 #{ name }"
     
   run: ( engine, state ) ->
-    await do ({ log, rule, saved, changed } = {}) ->
-      log = engine.logger
+    await do ({ rules, rule, saved, changed } = {}) ->
       loop
-        rule = engine.rules.find ({ conditions }) ->
+        rules = engine.rules.filter ({ conditions }) ->
           conditions.every ({ name, apply }) -> 
             result = apply.call state
-            log.debug condition: { name, result }
             result
-        if rule?
-          log.debug action: rule.action.name
-          saved = state
-          state = engine.clone state
+        saved = state
+        state = engine.clone state
+        for rule in rules
           await rule.action.apply.call state
-          changed = !( engine.equal saved, state )
-          log.debug { changed }
-          log.debug 
-            before: engine.dump saved
-            after: engine.dump state
-          if changed
-            engine.events.dispatch "change", state
-          else
-            break
-        else break
+        changed = !( engine.equal saved, state )
+        if changed
+          engine.events.dispatch "change", state
+        else
+          break
       state
 
 Conditions =

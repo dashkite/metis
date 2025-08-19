@@ -15,18 +15,16 @@ rules = Rules.make
 
 Conditions.register rules,
 
-  "weather is good": ({ forecast }) ->
-    /sunny/.test forecast
+  "weather is good": ->
+    /sunny/.test @forecast
 
-  "weather is rainy": ({ forecast }) ->
-    /rain/.test forecast
+  "weather is rainy": ->
+    /rain/.test @forecast
 
 Actions.register rules,
-  "go for a walk": ( state ) ->
-    state.activity = "walk"
+  "go for a walk": -> @activity = "walk"
 
-  "go to a movie": ( state ) ->
-    state.activity = "movie"
+  "go to a movie": -> @activity = "movie"
 
 Rules.register rules,
 
@@ -37,7 +35,6 @@ Rules.register rules,
   "go to a movie": [
     "weather is rainy"
   ]
-
 
 do ->
 

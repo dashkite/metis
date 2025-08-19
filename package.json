@@ -26,7 +26,8 @@
   ],
   "scripts": {
     "test": "genie test",
-    "build": "genie build"
+    "build": "genie build",
+    "release": "genie release"
   },
   "devDependencies": {
     "@dashkite/amen": "^0.2.2",
@@ -34,7 +35,9 @@
     "@dashkite/assert": "^0.1.4",
     "@dashkite/genie": "^0.20.4",
     "@dashkite/genie-clean": "link:../genie-clean",
-    "@dashkite/genie-coffee": "link:../genie-coffee"
+    "@dashkite/genie-coffee": "link:../genie-coffee",
+    "@dashkite/genie-module": "^0.5.40",
+    "@dashkite/genie-release": "^0.5.0"
   },
   "dependencies": {
     "@dashkite/events": "^0.1.0",
