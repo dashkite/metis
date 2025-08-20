@@ -1,7 +1,6 @@
 # import { negate } from "@dashkite/joy/predicate"
 import * as Val from "@dashkite/joy/value"
 import * as Arr from "@dashkite/joy/array"
-import Events from "@dashkite/events"
 
 # OOP-friendly negate
 negate = ( predicate ) -> 
@@ -13,7 +12,6 @@ Rule =
 
   defaults:
     equal: Val.equal
-    dump: ( state ) -> state
     clone: structuredClone
 
 Rules =
@@ -25,7 +23,6 @@ Rules =
       rules: []
       conditions: {}
       actions: {}
-      events: Events.create()
     }
 
   register: ( engine, rules ) ->
@@ -52,7 +49,7 @@ Rules =
                 #{ name }"
     
   run: ( engine, state ) ->
-    await do ({ rules, rule, saved, changed } = {}) ->
+    do ({ rules, rule, saved, changed } = {}) ->
       loop
         rules = engine.rules.filter ({ conditions }) ->
           conditions.every ({ name, apply }) -> 
@@ -61,12 +58,14 @@ Rules =
         saved = state
         state = engine.clone state
         for rule in rules
+          yield { name: "rule", rule: rule.name }
           await rule.action.apply.call state
         changed = !( engine.equal saved, state )
         if changed
-          engine.events.dispatch "change", state
+          yield { name: "change", state }
         else
           break
+      yield { name: "done", state }
       state
 
 Conditions =
@@ -79,7 +78,6 @@ Actions =
   register: ( engine, actions ) ->
     engine.actions = { engine.actions..., actions... }
 
-# convenient class interface
 class Athena
 
   @make: ( options ) -> 
@@ -95,8 +93,12 @@ class Athena
   rules: ( dictionary ) ->
     Rules.register @engine, dictionary
 
-  apply: ( state ) ->
-    Rules.run @engine, state
+  apply: ( state, args ) ->
+    if args?[0]?
+      Object.assign state,
+        await yield from args[0]
+    yield from Rules.run @engine, state
+    
 
 export default Athena
 export { Rules, Rule, Conditions, Actions, Athena }

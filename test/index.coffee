@@ -41,8 +41,8 @@ do ->
   print await test "Athena Rules Engine", [
 
     test "simple rules", ->
-      result = await Rules.run rules, 
-        forecast: "partly sunny"
+      result = await yield from do ->
+        Rules.run rules, forecast: "partly sunny"
 
       assert.equal "walk", result.activity
 
