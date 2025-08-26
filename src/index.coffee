@@ -1,4 +1,3 @@
-# import { negate } from "@dashkite/joy/predicate"
 import * as Val from "@dashkite/joy/value"
 import * as Arr from "@dashkite/joy/array"
 
@@ -7,11 +6,12 @@ negate = ( predicate ) ->
   ( value ) -> !( predicate.call @, value )
 
 Rule =
-  make: ({ conditions, action }) ->
-    { conditions, action }
+  make: ({ name, conditions, action }) ->
+    { name, conditions, action }
 
   defaults:
     equal: Val.equal
+    initialize: ( x ) -> x
     clone: structuredClone
 
 Rules =
@@ -49,6 +49,7 @@ Rules =
                 #{ name }"
     
   run: ( engine, state ) ->
+    state = engine.initialize state
     do ({ rules, rule, saved, changed } = {}) ->
       loop
         rules = engine.rules.filter ({ conditions }) ->
