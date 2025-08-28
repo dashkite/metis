@@ -59,7 +59,7 @@ Rules =
         saved = state
         state = engine.clone state
         for rule in rules
-          yield { name: "rule", rule: rule.name }
+          yield { name: "rule", rule: rule.name, state }
           await rule.action.apply.call state
         changed = !( engine.equal saved, state )
         if changed
