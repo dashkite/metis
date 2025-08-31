@@ -1,66 +1,59 @@
 import * as Val from "@dashkite/joy/value"
-import * as Arr from "@dashkite/joy/array"
 
 # OOP-friendly negate
 negate = ( predicate ) -> 
   ( value ) -> !( predicate.call @, value )
 
-Rule =
-  make: ({ name, conditions, action }) ->
-    { name, conditions, action }
+# destructive cat
+cat = ( array, value ) -> array.push value...
+
+# destructive assign
+assign = ( target, value ) -> Object.assign target, value
+
+Rules =
 
   defaults:
     equal: Val.equal
     initialize: ( x ) -> x
     clone: structuredClone
 
-Rules =
-
   make: ( options ) ->
     { 
-      Rule.defaults...
+      Rules.defaults...
       options...
-      rules: []
+      rules: {}
       conditions: {}
       actions: {}
     }
 
   register: ( engine, rules ) ->
-    engine.rules = Arr.cat engine.rules,
+    do ({ name, conditions, action, predicate } = {}) ->
       for name, conditions of rules
-        Rule.make
-          name: name
-          conditions: conditions.map ( name ) ->
-            do ({ apply } = {}) ->
-              if ( name.startsWith "!" )
-                name = name[1..]
-                negated = true              
-              if ( apply = engine.conditions[ name ])?
-                apply = negate apply if negated
-                { name, apply }
-              else
-                throw new Error "unknown condition:
-                  #{ name }"
-          action: do ({ apply } = {}) ->
-            if ( apply = engine.actions[ name ])?
-              { name, apply }
-            else
-              throw new Error "unknown action:
-                #{ name }"
+        engine.rules[ name ] = 
+          if ( action = engine.actions[ name ])?
+            { name, conditions, action }
+          else if ( condition = engine.conditions[ name ])?
+            { name, conditions, condition }
+          else
+            throw new Error "unknown action: #{ name }"
     
   run: ( engine, state ) ->
     state = engine.initialize state
-    do ({ rules, rule, saved, changed } = {}) ->
+    do ({ rules, rule, saved, changed, result } = {}) ->
       loop
-        rules = engine.rules.filter ({ conditions }) ->
-          conditions.every ({ name, apply }) -> 
-            result = apply.call state
-            result
+        rules = Object.values engine.rules
+          .filter ( rule ) ->
+            rule.action? && do ->
+              conditions = Conditions.closure engine, rule.conditions
+              conditions.every ( condition ) -> 
+                Conditions
+                  .lookup engine, condition
+                  .call state
         saved = state
         state = engine.clone state
         for rule in rules
           yield { name: "rule", rule: rule.name, state }
-          await rule.action.apply.call state
+          await rule.action.call state
         changed = !( engine.equal saved, state )
         if changed
           yield { name: "change", state }
@@ -72,12 +65,47 @@ Rules =
 Conditions =
 
   register: ( engine, conditions ) ->
-    engine.conditions = { engine.conditions..., conditions... }
+    assign engine.conditions, conditions
+
+  normalize: ( engine, name ) ->
+    do ({ truename, negated, condition } = {}) ->
+      if ( name.startsWith "!" )
+        truename = name[1..]
+        negated = true
+      else
+        truename = name
+      if ( condition = engine.conditions[ truename ])?
+        condition = negate condition if negated
+        { name, truename, negated, condition }
+      else
+        throw new Error "unknown condition: #{ _name }"
+
+  lookup: ( engine, condition ) ->
+    ( Conditions.normalize engine, condition ).condition
+  
+  closure: ( engine, conditions, seen = new Set ) ->
+    result = []
+    for name in conditions
+      condition = Conditions.normalize engine, name
+      unless seen.has condition.truename
+        seen.add condition.truename
+        if ( _condition = engine.rules[ condition.truename ])?
+          cat result,
+            Conditions.closure engine, 
+              _condition.conditions,
+              seen
+        if !( Conditions.in condition, result )
+          result.push condition.name
+    result
+
+  in: ({ name, truename }, list ) ->
+    ( name in list ) ||
+      (( name != truename ) && ( truename in list ))
 
 Actions =
   
   register: ( engine, actions ) ->
-    engine.actions = { engine.actions..., actions... }
+    assign engine.actions, actions
 
 class Athena
 
@@ -102,4 +130,4 @@ class Athena
     
 
 export default Athena
-export { Rules, Rule, Conditions, Actions, Athena }
+export { Rules, Conditions, Actions, Athena }

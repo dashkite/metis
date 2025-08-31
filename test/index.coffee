@@ -8,20 +8,14 @@ rules = Rules.make
   equal: ( a, b ) ->
     a.activity == b.activity
 
-  dump: ( state ) -> state
-  
-  logger: debug: ( state ) -> # console.log state
-
-
 Conditions.register rules,
 
-  "weather is good": ->
-    /sunny/.test @forecast
+  "weather is good": -> /sunny/.test @forecast
 
-  "weather is rainy": ->
-    /rain/.test @forecast
+  "weather is rainy": -> /rain/.test @forecast
 
 Actions.register rules,
+
   "go for a walk": -> @activity = "walk"
 
   "go to a movie": -> @activity = "movie"
