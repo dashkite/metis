@@ -78,7 +78,7 @@ Conditions =
         condition = negate condition if negated
         { name, truename, negated, condition }
       else
-        throw new Error "unknown condition: #{ _name }"
+        throw new Error "unknown condition: #{ truename }"
 
   lookup: ( engine, condition ) ->
     ( Conditions.normalize engine, condition ).condition
