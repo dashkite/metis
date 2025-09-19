@@ -30,7 +30,7 @@
     "release": "genie release"
   },
   "devDependencies": {
-    "@dashkite/amen": "link:../amen",
+    "@dashkite/amen": "^0.9.11",
     "@dashkite/amen-console": "^0.0.2",
     "@dashkite/assert": "^0.1.4",
     "@dashkite/genie": "^0.20.14",
