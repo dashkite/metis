@@ -1,33 +1,35 @@
 import assert from "@dashkite/assert"
 import {test, success} from "@dashkite/amen"
 import print from "@dashkite/amen-console"
-import { Rules, Conditions, Actions } from "../src"
+import Athena from "../src"
 
-rules = Rules.make
+rules = Athena.make
 
   equal: ( a, b ) ->
     a.activity == b.activity
 
-Conditions.register rules,
-
-  "weather is good": -> /sunny/.test @forecast
-
-  "weather is rainy": -> /rain/.test @forecast
-
-Actions.register rules,
-
-  "go for a walk": -> @activity = "walk"
-
-  "go to a movie": -> @activity = "movie"
-
-Rules.register rules,
-
-  "go for a walk": [
+rules
+  
+  .condition [
     "weather is good"
+    -> /sunny/.test @forecast
   ]
 
-  "go to a movie": [
+  .condition [
     "weather is rainy"
+    -> /rain/.test @forecast
+  ]
+
+  .action [
+    "go for a walk"
+    [ "weather is good" ]
+    -> @activity = "walk"
+  ]
+  
+  .action [
+    "go to a movie"
+    [ "weather is rainy" ]
+    -> @activity = "movie"
   ]
 
 do ->
@@ -35,10 +37,14 @@ do ->
   print await test "Athena Rules Engine", [
 
     test "simple rules", ->
-      result = await yield from do ->
-        Rules.run rules, forecast: "partly sunny"
-
+      # TODO why isn't yield from working here?
+      # result = await yield from rules.apply forecast: "partly sunny"
+      # console.log result
+      for await event from rules.apply forecast: "partly sunny"
+        if event.name == "done"
+          result = event.state
       assert.equal "walk", result.activity
+    
 
   ]
 

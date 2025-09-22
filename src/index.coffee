@@ -1,4 +1,5 @@
 import * as Val from "@dashkite/joy/value"
+import Generic from "@dashkite/generic"
 
 # OOP-friendly negate
 negate = ( predicate ) -> 
@@ -9,6 +10,9 @@ cat = ( array, value ) -> array.push value...
 
 # destructive assign
 assign = ( target, value ) -> Object.assign target, value
+
+# predicate to check for tuples of a given length
+tuple = ( k ) -> ( value ) -> value?.length == k
 
 Rules =
 
@@ -116,8 +120,40 @@ class Athena
   conditions: ( dictionary ) ->
     Conditions.register @engine, dictionary
 
+  condition: do ->
+
+    ( Generic.make "Athena::condition" )
+    
+      .define [ Object ], ( specifier ) ->
+        @conditions [ specifier.name ]: specifier.run
+        if specifier.when?
+          @rules [ specifier.name ]: specifier.when
+        @
+
+      .define [ tuple 2 ], ([ name, run ]) ->
+        @condition { name, run }
+
+      .define [ tuple 3 ], ([ name, conditions, run ]) ->
+        @condition { name, run, when: conditions }
+
   actions: ( dictionary ) ->
     Actions.register @engine, dictionary
+
+  action: do ->
+
+    ( Generic.make "Athena::action" )
+
+      .define [ Object ], ( specifier ) ->
+        @actions [ specifier.name ]: specifier.run
+        if specifier.when?
+          @rules [ specifier.name ]: specifier.when
+        @
+
+      .define [ tuple 2 ], ([ name, run ]) ->
+        @action { name, run }
+
+      .define [ tuple 3 ], ([ name, conditions, run ]) ->
+        @action { name, run, when: conditions }
 
   rules: ( dictionary ) ->
     Rules.register @engine, dictionary
@@ -125,9 +161,8 @@ class Athena
   apply: ( state, args ) ->
     if args?[0]?
       Object.assign state,
-        await yield from args[0]
+        ( await yield from args[0])
     yield from Rules.run @engine, state
-    
 
 export default Athena
 export { Rules, Conditions, Actions, Athena }

@@ -41,6 +41,7 @@
   },
   "dependencies": {
     "@dashkite/events": "^0.1.0",
+    "@dashkite/generic": "^0.9.17",
     "@dashkite/joy": "^0.3.16"
   }
 }
