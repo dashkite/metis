@@ -159,6 +159,8 @@ class Athena
     Rules.register @engine, dictionary
 
   apply: ( state, args ) ->
+    # this is for composition
+    # TODO explain
     if args?[0]?
       Object.assign state,
         ( await yield from args[0])

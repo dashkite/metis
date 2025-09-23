@@ -25,7 +25,7 @@ rules
     [ "weather is good" ]
     -> @activity = "walk"
   ]
-  
+
   .action [
     "go to a movie"
     [ "weather is rainy" ]
@@ -34,17 +34,13 @@ rules
 
 do ->
 
+
   print await test "Athena Rules Engine", [
 
     test "simple rules", ->
-      # TODO why isn't yield from working here?
-      # result = await yield from rules.apply forecast: "partly sunny"
-      # console.log result
-      for await event from rules.apply forecast: "partly sunny"
-        if event.name == "done"
-          result = event.state
+      result = yield from rules.apply forecast: "partly sunny"
       assert.equal "walk", result.activity
-    
+      await return
 
   ]
 
