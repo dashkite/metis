@@ -1,4 +1,4 @@
-_Copyright 2018-2023 DashKite, Inc._
+_Copyright 2018-2026 DashKite, Inc._
 
 **HIPPOCRATIC LICENSE**
 
@@ -92,7 +92,7 @@ TERMS AND CONDITIONS FOR USE, COPY, MODIFICATION, PREPARATION OF DERIVATIVE WORK
 
         3.1.12.2.5.  "Environment" means the earth, its biosphere, cryosphere, lithosphere, hydrosphere, and atmosphere, as well as outer space
 
-			(See Section II, *Independent Expert Panel for the Legal Definition of Ecocide*, Stop Ecocide Foundation and the Promise Institute for Human Rights at UCLA School of Law, June 2021);
+                        (See Section II, *Independent Expert Panel for the Legal Definition of Ecocide*, Stop Ecocide Foundation and the Promise Institute for Human Rights at UCLA School of Law, June 2021);
 
     3.1.13. (Module -- Extractive Industries) Be an individual or entity, or a representative, agent, affiliate, successor, attorney, or assign of an individual or entity, that engages in fossil fuel or mineral exploration, extraction, development, or sale;
 
@@ -152,7 +152,7 @@ TERMS AND CONDITIONS FOR USE, COPY, MODIFICATION, PREPARATION OF DERIVATIVE WORK
       3.2.4.3.  A system which measures earnings by quantity or quality of production; or
 
       3.2.4.4.  A differential based on any other factor other than sex, gender, sexual orientation, race, ethnicity, nationality, religion, caste, age, medical disability or impairment, and/or any other like circumstances
-      (See 29 U.S.C.A. � 206(d)(1); Article 23, *United Nations Universal Declaration of Human Rights*; Article 7, *International Covenant on Economic, Social and Cultural Rights*; Article 26, *International Covenant on Civil and Political Rights*); and
+      (See 29 U.S.C.A.  206(d)(1); Article 23, *United Nations Universal Declaration of Human Rights*; Article 7, *International Covenant on Economic, Social and Cultural Rights*; Article 26, *International Covenant on Civil and Political Rights*); and
 
     3.2.5.  Allow for reasonable limitation of working hours and periodic holidays with pay
     (See Article 24, *United Nations Universal Declaration of Human Rights*; Article 7, *International Covenant on Economic, Social and Cultural Rights*).
