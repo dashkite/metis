@@ -1,6 +1,6 @@
 {
   "name": "@dashkite/athena",
-  "version": "0.0.13",
+  "version": "0.0.14",
   "description": "A practical CoffeeScript rules engine",
   "keywords": [],
   "homepage": "https://github.com/dashkite/athena#readme",
