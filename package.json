@@ -30,18 +30,18 @@
     "release": "genie release"
   },
   "devDependencies": {
-    "@dashkite/amen": "^0.9.27",
+    "@dashkite/amen": "^0.9.28",
     "@dashkite/amen-console": "^0.0.2",
     "@dashkite/assert": "^0.1.4",
-    "@dashkite/genie": "^0.20.25",
-    "@dashkite/genie-clean": "^0.13.24",
-    "@dashkite/genie-coffee": "^0.13.27",
-    "@dashkite/genie-module": "^0.5.54",
-    "@dashkite/genie-release": "^0.5.14"
+    "@dashkite/genie": "^0.20.26",
+    "@dashkite/genie-clean": "^0.13.25",
+    "@dashkite/genie-coffee": "^0.13.28",
+    "@dashkite/genie-module": "^0.5.55",
+    "@dashkite/genie-release": "^0.5.15"
   },
   "dependencies": {
     "@dashkite/events": "^0.1.0",
-    "@dashkite/generic": "^0.9.29",
+    "@dashkite/generic": "^0.9.30",
     "@dashkite/joy": "^0.3.16"
   }
 }
