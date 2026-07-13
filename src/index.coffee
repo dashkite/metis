@@ -45,6 +45,7 @@ Rules =
             { name, conditions, condition }
           else
             throw new Error "unknown action: #{ name }"
+      return # avoid returning comprehension
     engine
     
   run: ( engine, state ) ->
@@ -209,8 +210,6 @@ class Athena
     @
 
   apply: ( state, args ) ->
-    # this is for composition
-    # TODO explain
     if args?[0]?
       Object.assign state,
         ( await yield from args[0])
