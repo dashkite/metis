@@ -3,7 +3,12 @@ import Generic from "@dashkite/generic"
 
 # OOP-friendly negate
 negate = ( predicate ) -> 
-  ( value ) -> !( predicate.call @, value )
+  ( args... ) ->
+    result = predicate.apply @, args
+    if result?.then?
+      result.then (resolvedValue) -> !resolvedValue
+    else
+      !result
 
 # destructive cat
 cat = ( array, value ) -> array.push value...
@@ -12,13 +17,13 @@ cat = ( array, value ) -> array.push value...
 assign = ( target, value ) -> Object.assign target, value
 
 # predicate to check for tuples of a given length
-tuple = ( k ) -> ( value ) -> value?.length == k
+tuple = ( size ) -> ( value ) -> value?.length == size
 
 Rules =
 
   defaults:
     equal: Val.equal
-    initialize: ( x ) -> x
+    initialize: ( state ) -> state
     clone: structuredClone
 
   make: ( options ) ->
@@ -40,6 +45,7 @@ Rules =
             { name, conditions, condition }
           else
             throw new Error "unknown action: #{ name }"
+    engine
     
   run: ( engine, state ) ->
     state = engine.initialize state
@@ -52,12 +58,12 @@ Rules =
               conditions.every ( condition ) -> 
                 Conditions
                   .lookup engine, condition
-                  .call state
+                  .apply state
         saved = state
         state = engine.clone state
         for rule in rules
           yield { name: "rule", rule: rule.name, state }
-          await rule.action.call state
+          await rule.action.apply state
         changed = !( engine.equal saved, state )
         if changed
           yield { name: "change", state }
@@ -70,6 +76,7 @@ Conditions =
 
   register: ( engine, conditions ) ->
     assign engine.conditions, conditions
+    engine
 
   normalize: ( engine, name ) ->
     do ({ truename, negated, condition } = {}) ->
@@ -110,6 +117,46 @@ Actions =
   
   register: ( engine, actions ) ->
     assign engine.actions, actions
+    engine
+
+Evaluator =
+  run: ( engine, state ) ->
+    evaluate = ( currentState ) ->
+      saved = currentState
+      currentState = engine.clone currentState
+      
+      applyRules = ( [ rule, remaining... ] = [], currentState ) ->
+        if !rule?
+          if engine.equal saved, currentState
+            currentState
+          else
+            evaluate currentState
+        else
+          if rule.action?
+            conditions = Conditions.closure engine, rule.conditions
+            
+            checkConditions = ( [ condition, rest... ] = [] ) ->
+              if !condition?
+                result = rule.action.apply currentState
+                if result?.then?
+                  result.then -> applyRules remaining, currentState
+                else
+                  applyRules remaining, currentState
+              else
+                result = Conditions.lookup(engine, condition).apply currentState
+                if result?.then?
+                  result.then (conditionPassed) ->
+                    if conditionPassed then checkConditions rest else applyRules remaining, currentState
+                else
+                  if result then checkConditions rest else applyRules remaining, currentState
+
+            checkConditions conditions
+          else
+            applyRules remaining, currentState
+
+      applyRules ( Object.values engine.rules ), currentState
+
+    evaluate engine.initialize state
 
 class Athena
 
@@ -119,6 +166,7 @@ class Athena
 
   conditions: ( dictionary ) ->
     Conditions.register @engine, dictionary
+    @
 
   condition: do ->
 
@@ -138,6 +186,7 @@ class Athena
 
   actions: ( dictionary ) ->
     Actions.register @engine, dictionary
+    @
 
   action: do ->
 
@@ -157,6 +206,7 @@ class Athena
 
   rules: ( dictionary ) ->
     Rules.register @engine, dictionary
+    @
 
   apply: ( state, args ) ->
     # this is for composition
@@ -166,5 +216,15 @@ class Athena
         ( await yield from args[0])
     yield from Rules.run @engine, state
 
+  run: ( state ) ->
+    result = Evaluator.run @engine, state
+    if result?.then?
+      result.then (finalState) => 
+        @state = finalState
+        @
+    else
+      @state = result
+      @
+
 export default Athena
-export { Rules, Conditions, Actions, Athena }
+export { Rules, Conditions, Actions, Evaluator, Athena }
