@@ -69,14 +69,18 @@ $rules:( dictionary ) \rightarrow engine$
 
 Registers a dictionary mapping actions to their prerequisite conditions.
 
-### apply
+### start
 
-$apply:( state, args ) \rightarrow async\_generator$
+$start:( state ) \rightarrow async\_generator$
+$start:( state, evaluator, delegator ) \rightarrow async\_generator$
+$start:( state, options ) \rightarrow async\_generator$
 
-Applies the registered rules to the given state and yields execution events as state mutations occur.
+Applies the registered rules to the given state utilizing an iterator evaluation form. Yields execution events as state mutations occur. `options` allows configuring `mode` ("sync" or "async") and `delegator`.
 
 ### run
 
-$run:( state ) \rightarrow engine$
+$run:( state ) \rightarrow state$
+$run:( state, evaluator ) \rightarrow state$
+$run:( state, options ) \rightarrow state$
 
-A method for evaluating the rules engine to equilibrium, returning the instance. Executes synchronously unless a condition or action returns a Promise, in which case it transitions to asynchronous execution.
+Evaluates the rules engine to equilibrium, returning the final state statelessly (or a Promise resolving to it). `options` allows configuring `mode` ("sync" or "async").

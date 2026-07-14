@@ -35,7 +35,7 @@ athena = Athena.make()
     "celebrate": [ "is-happy" ]
 
 state = mood: "happy"
-for await event from athena.apply state
+for await event from athena.start state
   console.log event
 ```
 

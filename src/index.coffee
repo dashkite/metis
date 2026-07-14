@@ -1,4 +1,5 @@
 import * as Val from "@dashkite/joy/value"
+import { isDefined } from "@dashkite/joy"
 import Generic from "@dashkite/generic"
 
 # OOP-friendly negate
@@ -18,6 +19,10 @@ assign = ( target, value ) -> Object.assign target, value
 
 # predicate to check for tuples of a given length
 tuple = ( size ) -> ( value ) -> value?.length == size
+
+hasEvaluator = ( value ) -> value?.constructor == Object && value.evaluator?
+isSync = ( value ) -> value?.constructor == Object && value.mode in [ "sync", "synchronous" ]
+isAsync = ( value ) -> value?.constructor == Object && (!value.mode? || value.mode in [ "async", "asynchronous" ])
 
 Rules =
 
@@ -47,31 +52,6 @@ Rules =
             throw new Error "unknown action: #{ name }"
       return # avoid returning comprehension
     engine
-    
-  run: ( engine, state ) ->
-    state = engine.initialize state
-    do ({ rules, rule, saved, changed, result } = {}) ->
-      loop
-        rules = Object.values engine.rules
-          .filter ( rule ) ->
-            rule.action? && do ->
-              conditions = Conditions.closure engine, rule.conditions
-              conditions.every ( condition ) -> 
-                Conditions
-                  .lookup engine, condition
-                  .apply state
-        saved = state
-        state = engine.clone state
-        for rule in rules
-          yield { name: "rule", rule: rule.name, state }
-          await rule.action.apply state
-        changed = !( engine.equal saved, state )
-        if changed
-          yield { name: "change", state }
-        else
-          break
-      yield { name: "done", state }
-      state
 
 Conditions =
 
@@ -120,44 +100,99 @@ Actions =
     assign engine.actions, actions
     engine
 
-Evaluator =
-  run: ( engine, state ) ->
-    evaluate = ( currentState ) ->
-      saved = currentState
-      currentState = engine.clone currentState
-      
-      applyRules = ( [ rule, remaining... ] = [], currentState ) ->
-        if !rule?
-          if engine.equal saved, currentState
-            currentState
-          else
-            evaluate currentState
+Evaluators =
+
+  asyncIterator: ( engine, state, delegator ) ->
+    if delegator?
+      Object.assign state, ( await yield from delegator )
+    state = engine.initialize state
+    yield from do ({ rules, rule, saved, changed, result } = {}) ->
+      loop
+        rules = Object.values engine.rules
+          .filter ( rule ) ->
+            rule.action? && do ->
+              conditions = Conditions.closure engine, rule.conditions
+              conditions.every ( condition ) -> 
+                Conditions
+                  .lookup engine, condition
+                  .apply state
+        saved = state
+        state = engine.clone state
+        for rule in rules
+          yield { name: "rule", rule: rule.name, state }
+          await rule.action.apply state
+        changed = !( engine.equal saved, state )
+        if changed
+          yield { name: "change", state }
         else
-          if rule.action?
-            conditions = Conditions.closure engine, rule.conditions
-            
-            checkConditions = ( [ condition, rest... ] = [] ) ->
-              if !condition?
-                result = rule.action.apply currentState
-                if result?.then?
-                  result.then -> applyRules remaining, currentState
-                else
-                  applyRules remaining, currentState
-              else
-                result = Conditions.lookup(engine, condition).apply currentState
-                if result?.then?
-                  result.then (conditionPassed) ->
-                    if conditionPassed then checkConditions rest else applyRules remaining, currentState
-                else
-                  if result then checkConditions rest else applyRules remaining, currentState
+          break
+      yield { name: "done", state }
+      state
 
-            checkConditions conditions
-          else
-            applyRules remaining, currentState
+  syncIterator: ( engine, state, delegator ) ->
+    if delegator?
+      Object.assign state, ( yield from delegator )
+    state = engine.initialize state
+    yield from do ({ rules, rule, saved, changed, result } = {}) ->
+      loop
+        rules = Object.values engine.rules
+          .filter ( rule ) ->
+            rule.action? && do ->
+              conditions = Conditions.closure engine, rule.conditions
+              conditions.every ( condition ) -> 
+                Conditions
+                  .lookup engine, condition
+                  .apply state
+        saved = state
+        state = engine.clone state
+        for rule in rules
+          yield { name: "rule", rule: rule.name, state }
+          rule.action.apply state
+        changed = !( engine.equal saved, state )
+        if changed
+          yield { name: "change", state }
+        else
+          break
+      yield { name: "done", state }
+      state
 
-      applyRules ( Object.values engine.rules ), currentState
+  asyncCollector: ( engine, state ) ->
+    state = await engine.initialize state
+    loop
+      saved = state
+      state = await engine.clone state
+      rules = Object.values engine.rules
+      for rule in rules
+        continue unless rule.action?
+        conditions = Conditions.closure engine, rule.conditions
+        passed = true
+        for condition in conditions
+          if !( await Conditions.lookup(engine, condition).apply state )
+            passed = false
+            break
+        if passed
+          await rule.action.apply state
+      break if await engine.equal saved, state
+    state
 
-    evaluate engine.initialize state
+  syncCollector: ( engine, state ) ->
+    state = engine.initialize state
+    loop
+      saved = state
+      state = engine.clone state
+      rules = Object.values engine.rules
+      for rule in rules
+        continue unless rule.action?
+        conditions = Conditions.closure engine, rule.conditions
+        passed = true
+        for condition in conditions
+          if !( Conditions.lookup(engine, condition).apply state )
+            passed = false
+            break
+        if passed
+          rule.action.apply state
+      break if engine.equal saved, state
+    state
 
 class Athena
 
@@ -209,21 +244,44 @@ class Athena
     Rules.register @engine, dictionary
     @
 
-  apply: ( state, args ) ->
-    if args?[0]?
-      Object.assign state,
-        ( await yield from args[0])
-    yield from Rules.run @engine, state
+  start: do ->
+    ( Generic.make "Athena::start" )
+      .define [ isDefined ], ( state ) ->
+        Evaluators.asyncIterator @engine, state
+        
+      .define [ isDefined, hasEvaluator ], ( state, options ) ->
+        options.evaluator @engine, state, options.delegator
 
-  run: ( state ) ->
-    result = Evaluator.run @engine, state
-    if result?.then?
-      result.then (finalState) => 
-        @state = finalState
-        @
-    else
-      @state = result
-      @
+      .define [ isDefined, isSync ], ( state, options ) ->
+        Evaluators.syncIterator @engine, state, options.delegator
 
+      .define [ isDefined, isAsync ], ( state, options ) ->
+        Evaluators.asyncIterator @engine, state, options.delegator
+
+      .define [ isDefined, Function ], ( state, evaluator ) ->
+        evaluator @engine, state
+
+      .define [ isDefined, Function, isDefined ], ( state, evaluator, delegator ) ->
+        evaluator @engine, state, delegator
+
+  run: do ->
+    execute = ( engine, state, evaluator ) ->
+      evaluator engine.engine, state
+
+    ( Generic.make "Athena::run" )
+      .define [ isDefined ], ( state ) ->
+        execute @, state, Evaluators.asyncCollector
+        
+      .define [ isDefined, hasEvaluator ], ( state, options ) ->
+        execute @, state, options.evaluator
+        
+      .define [ isDefined, isSync ], ( state, options ) ->
+        execute @, state, Evaluators.syncCollector
+
+      .define [ isDefined, isAsync ], ( state, options ) ->
+        execute @, state, Evaluators.asyncCollector
+
+      .define [ isDefined, Function ], ( state, evaluator ) ->
+        execute @, state, evaluator
 export default Athena
-export { Rules, Conditions, Actions, Evaluator, Athena }
+export { Rules, Conditions, Actions, Evaluators, Athena }
