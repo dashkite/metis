@@ -3,7 +3,7 @@ import { cat, assign, negate, tuple } from "./helpers.js"
 
 class Conditions
 
-  constructor: ( @parent = null ) ->
+  constructor: ->
     @registry = {}
 
   register: ( dictionary ) ->
@@ -26,51 +26,38 @@ class Conditions
       .define [ tuple 3 ], ([ name, conditions, run ]) ->
         @condition { name, run, when: conditions }
 
-  parseName: ( name ) ->
+  parse: ( name ) ->
     if ( name.startsWith "!" )
       { truename: name[ 1.. ], negated: true }
     else
       { truename: name, negated: false }
 
   lookup: ( name ) ->
-    { truename, negated } = ( @parseName name )
+    { truename, negated } = ( @parse name )
 
-    if ( entry = @registry[ truename ] )?
+    if ( entry = @registry[ truename ])?
       predicate = if negated then ( negate entry.run ) else entry.run
-      { name, truename, negated, predicate, scope: "target", when: entry.when }
-    else if ( parentCondition = @parent?.lookup truename )?
-      predicate = if negated then ( negate parentCondition.predicate ) else parentCondition.predicate
-      { name, truename, negated, predicate, scope: "parent", when: parentCondition.when }
+      { name, truename, negated, predicate, when: entry.when }
     else
-      throw new Error "unknown condition: #{ truename }"
+      null
 
   closure: ( conditions = [], seen = new Set ) ->
     result = []
-    for name in ( conditions ? [] )
-      { truename } = ( @parseName name )
+    for name in ( conditions ? [])
+      { truename } = ( @parse name )
 
-      if ( entry = @registry[ truename ] )?
+      if ( entry = @registry[ truename ])?
         condition = ( @lookup name )
-        if ( ! ( seen.has condition.truename ) )
+        if condition? && (!( seen.has condition.truename ))
           seen.add condition.truename
           if ( entry.when?.length > 0 )
             cat result, ( @closure entry.when, seen )
-          if ( ! ( @in condition, result ) )
+          exists =
+            result.some ( item ) ->
+              ( item.name == condition.name ) ||
+                ( item.truename == condition.truename )
+          if (! exists)
             result.push condition
-
-      else if @parent?
-        parentClosure = @parent.closure [ name ], seen
-        for parentCondition in parentClosure
-          if ( ! ( seen.has parentCondition.truename ) )
-            seen.add parentCondition.truename
-            if ( ! ( @in parentCondition, result ) )
-              result.push parentCondition
-
-      else
-        throw new Error "unknown condition: #{ truename }"
     result
-
-  in: ( condition, list ) ->
-    list.some ( item ) -> ( item.name == condition.name ) || ( item.truename == condition.truename )
 
 export default Conditions

@@ -16,16 +16,16 @@ Rules =
     }
 
   register: ( engine, rules ) ->
-    do ({ name, whenConditions, action, condition } = {}) ->
-      for name, whenConditions of rules
+    do ({ name, conditions, action, condition } = {}) ->
+      for name, conditions of rules
         engine.rules[ name ] = 
-          if ( action = engine.actions[ name ] )?
-            { name, when: whenConditions, run: action }
-          else if ( condition = ( engine.conditions.lookup name ) )?
-            { name, when: whenConditions, predicate: condition.predicate }
+          if ( action = engine.actions[ name ])?
+            { name, when: conditions, run: action }
+          else if ( condition = ( engine.conditions.lookup name ))?
+            { name, when: conditions, predicate: condition.predicate }
           else
             throw new Error "unknown action: #{ name }"
-      return # avoid returning comprehension
+      return
     engine
 
 export default Rules

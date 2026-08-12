@@ -79,8 +79,9 @@ class Athena
       .define [ isDefined, Function ], ( state, evaluator ) ->
         ( evaluator.make @engine, state ).start()
 
-      .define [ isDefined, Function, isDefined ], ( state, evaluator, delegator ) ->
-        ( evaluator.make @engine, state ).start delegator
+      .define [ isDefined, Function, isDefined ],
+        ( state, evaluator, delegator ) ->
+          ( evaluator.make @engine, state ).start delegator
 
   run: do ->
     ( Generic.make "Athena::run" )
@@ -100,4 +101,12 @@ class Athena
         ( evaluator.make @engine, state ).run()
 
 export default Athena
-export { Rules, Conditions, Actions, Athena, Aggregator, SyncEvaluator, AsyncEvaluator }
+export {
+  Rules
+  Conditions
+  Actions
+  Athena
+  Aggregator
+  SyncEvaluator
+  AsyncEvaluator
+}

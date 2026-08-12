@@ -1,7 +1,3 @@
-import Generic from "@dashkite/generic"
-
-isIterativeRule = ( rule ) -> rule?.each?
-
 class Evaluator
 
   @make: ( engine, state ) ->
@@ -10,56 +6,34 @@ class Evaluator
 
 class SyncEvaluator extends Evaluator
 
-  if: do ->
-    ( Generic.make "SyncEvaluator::if" )
+  if: ( rule ) ->
+    closure = ( rule.conditions ? @engine.conditions ).closure rule.when
+    closure.every ( entry ) =>
+      entry.predicate.call @state, @state
 
-      .define [ Object ], ( rule ) ->
-        closure = ( rule.conditions ? @engine.conditions ).closure rule.when
-        closure.every ( entry ) =>
-          entry.predicate.call @state, @state
-
-      .define [ isIterativeRule ], ( rule ) ->
-        closure = ( rule.conditions ? @engine.conditions ).closure rule.when
-        targets = rule.each.call @state, @state
-        ( targets ? [] ).some ( target ) =>
-          closure.every ( entry ) =>
-            self = if ( entry.scope == "target" ) then target else @state
-            entry.predicate.call self, @state
-
-  then: do ->
-    ( Generic.make "SyncEvaluator::then" )
-
-      .define [ Object ], ( rule ) ->
-        rule.run.call @state, @state
-
-      .define [ isIterativeRule ], ( rule ) ->
-        closure = ( rule.conditions ? @engine.conditions ).closure rule.when
-        targets = rule.each.call @state, @state
-        for target in ( targets ? [] )
-          targetPassed = closure.every ( entry ) =>
-            self = if ( entry.scope == "target" ) then target else @state
-            entry.predicate.call self, @state
-          if targetPassed
-            rule.run.call target, @state
-        return
+  then: ( rule ) ->
+    rule.run.call @state, @state
 
   run: ->
     @state = @engine.initialize @state
+    delete @state.__
     loop
       saved = @state
       @state = @engine.clone @state
       for rule in Object.values @engine.rules
-        if ( ! rule.run? )
+        if (! rule.run?)
           continue
         if @if rule
           @then rule
       break if @engine.equal saved, @state
+    delete @state.__
     @state
 
   start: ( delegator ) ->
     if delegator?
       Object.assign @state, ( yield from delegator )
     @state = @engine.initialize @state
+    delete @state.__
     evaluator = @
     yield from do ({ rules, rule, saved, changed } = {}) ->
       loop
@@ -72,104 +46,73 @@ class SyncEvaluator extends Evaluator
         for rule in rules
           yield { name: "rule", rule: rule.name, state: evaluator.state }
           evaluator.then rule
-        changed = ( ! ( evaluator.engine.equal saved, evaluator.state ) )
+        changed = (!( evaluator.engine.equal saved, evaluator.state ))
         if changed
           yield { name: "change", state: evaluator.state }
         else
           break
       yield { name: "done", state: evaluator.state }
+      delete evaluator.state.__
       evaluator.state
 
 
 class AsyncEvaluator extends Evaluator
 
-  if: do ->
-    ( Generic.make "AsyncEvaluator::if" )
-
-      .define [ Object ], ( rule ) ->
-        closure = ( rule.conditions ? @engine.conditions ).closure rule.when
-        passed = true
-        for entry in closure
-          if ( ! ( await entry.predicate.call @state, @state ) )
-            passed = false
-            break
-        passed
-
-      .define [ isIterativeRule ], ( rule ) ->
-        closure = ( rule.conditions ? @engine.conditions ).closure rule.when
-        targets = await rule.each.call @state, @state
+  if: ( rule ) ->
+    closure = ( rule.conditions ? @engine.conditions ).closure rule.when
+    passed = true
+    for entry in closure
+      if (!( await entry.predicate.call @state, @state ))
         passed = false
-        for target in ( targets ? [] )
-          targetPassed = true
-          for entry in closure
-            self = if ( entry.scope == "target" ) then target else @state
-            if ( ! ( await entry.predicate.call self, @state ) )
-              targetPassed = false
-              break
-          if targetPassed
-            passed = true
-            break
-        passed
+        break
+    passed
 
-  then: do ->
-    ( Generic.make "AsyncEvaluator::then" )
-
-      .define [ Object ], ( rule ) ->
-        await rule.run.call @state, @state
-
-      .define [ isIterativeRule ], ( rule ) ->
-        closure = ( rule.conditions ? @engine.conditions ).closure rule.when
-        targets = await rule.each.call @state, @state
-        for target in ( targets ? [] )
-          targetPassed = true
-          for entry in closure
-            self = if ( entry.scope == "target" ) then target else @state
-            if ( ! ( await entry.predicate.call self, @state ) )
-              targetPassed = false
-              break
-          if targetPassed
-            await rule.run.call target, @state
-        return
+  then: ( rule ) ->
+    await rule.run.call @state, @state
 
   run: ->
     @state = await @engine.initialize @state
+    delete @state.__
     loop
       saved = @state
       @state = await @engine.clone @state
       rules = Object.values @engine.rules
       for rule in rules
-        if ( ! rule.run? )
+        if (! rule.run?)
           continue
         passed = await @if rule
         if passed
           await @then rule
       break if await @engine.equal saved, @state
+    delete @state.__
     @state
 
   start: ( delegator ) ->
     if delegator?
       Object.assign @state, ( await yield from delegator )
     @state = await @engine.initialize @state
+    delete @state.__
     evaluator = @
     yield from do ({ rules, rule, saved, changed } = {}) ->
       loop
-        matchingRules = []
+        rules = []
         for rule in Object.values evaluator.engine.rules
           if rule.run?
             passed = await evaluator.if rule
             if passed
-              matchingRules.push rule
+              rules.push rule
         saved = evaluator.state
         evaluator.state = await evaluator.engine.clone evaluator.state
-        for rule in matchingRules
+        for rule in rules
           yield { name: "rule", rule: rule.name, state: evaluator.state }
           await evaluator.then rule
-        changed = ( ! ( await evaluator.engine.equal saved, evaluator.state ) )
+        changed = (!( await evaluator.engine.equal saved, evaluator.state ))
         if changed
           yield { name: "change", state: evaluator.state }
         else
           break
       yield { name: "done", state: evaluator.state }
+      delete evaluator.state.__
       evaluator.state
 
 
