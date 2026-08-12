@@ -84,3 +84,28 @@ $run:( state, evaluator ) \rightarrow state$
 $run:( state, options ) \rightarrow state$
 
 Evaluates the rules engine to equilibrium, returning the final state statelessly (or a Promise resolving to it). `options` allows configuring `mode` ("sync" or "async").
+
+### each
+
+$each:( selector ) \rightarrow aggregator$
+
+Returns a new `Aggregator` scope bound to the target collection selector function.
+
+## Aggregator
+
+### condition
+
+$condition:( specifier ) \rightarrow aggregator$
+$condition:( name, run ) \rightarrow aggregator$
+$condition:( name, conditions, run ) \rightarrow aggregator$
+
+Registers a local item-level condition on the `Aggregator` instance (`@ = item`, `(state)` parameter). Local conditions are scoped exclusively to the aggregator and do not pollute the parent engine condition registry.
+
+### action
+
+$action:( specifier ) \rightarrow engine$
+$action:( name, run ) \rightarrow engine$
+$action:( name, conditions, run ) \rightarrow engine$
+
+Registers an iterative action for the collection elements matching specified local and global conditions (`@ = item`, `(state)` parameter). Returns the parent `Athena` instance to resume top-level rulebase chaining.
+

@@ -307,3 +307,46 @@ state = version: 0
 finalState = engine.run state, mode: "sync"
 console.log "Final version:", finalState.version
 ```
+
+## Iterative Rules (.each & Aggregator)
+
+Athena allows developers to scope rules to items within a collection using `.each(selector)` and the `Aggregator` scope. This enables declarative element-by-element evaluation and transformation over collections without manual `for` loops or custom iteration logic.
+
+1. Call `.each(selector)` on the `Athena` instance to obtain an `Aggregator` scope targeting a collection (e.g. `-> @cart`).
+2. Use `.condition(...)` on the `Aggregator` to define item-level conditions (`@ = item`, `(state)` parameter).
+3. Use `.action(...)` on the `Aggregator` to define the iterative action (`@ = item`, `(state)` parameter).
+4. Global parent conditions defined on `Athena` (`@ = state`) can be combined with local item conditions in iterative actions seamlessly.
+
+```coffeescript
+import Athena from "@dashkite/athena"
+
+athena = Athena.make()
+  # Global state condition (@ = state)
+  .condition [ "store-is-open", -> @isOpen ]
+
+  # Iterative rule block scoped to @cart
+  .each(-> @cart)
+    # Local item conditions (@ = item)
+    .condition([ "is-affordable", (state) -> @price <= state.remainingBudget ])
+    .condition([ "in-stock", -> @quantity > 0 ])
+    .action([
+      "approve-item"
+      # Combines global condition "store-is-open" and local item conditions
+      [ "store-is-open", "is-affordable", "in-stock" ]
+      ( state ) ->
+        @status = "approved"
+        state.remainingBudget -= @price
+    ])
+
+state =
+  isOpen: true
+  remainingBudget: 50
+  cart: [
+    { id: "a", price: 30, quantity: 1, status: "pending" }
+    { id: "b", price: 40, quantity: 2, status: "pending" }
+    { id: "c", price: 20, quantity: 1, status: "pending" }
+  ]
+
+finalState = athena.run state, mode: "sync"
+```
+
