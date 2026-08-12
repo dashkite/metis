@@ -5,8 +5,8 @@ import Conditions from "./conditions.js"
 test = deferrable ({ item, state }, entry ) ->
   entry.predicate.call item, state
 
-execute = deferrable ({ item, state }, action ) ->
-  action.call item, state
+execute = deferrable ({ item, state }, run ) ->
+  run.call item, state
 
 select = deferrable ( selector, state ) ->
   selector.call state, state
@@ -37,7 +37,7 @@ process = deferrable ([ item, rest... ], context ) ->
     target = { item, state: context.state }
     evaluate target, context.closure, ( passed ) ->
       if passed
-        execute target, context.action, ->
+        execute target, context.run, ->
           process rest, context, ( result ) -> result
       else
         process rest, context, ( result ) -> result
@@ -60,30 +60,29 @@ class Aggregator
   action: do ->
     ( Generic.make "Aggregator::action" )
 
-      .define [ Object ], ({ name, run: action, when: conditions = [] }) ->
+      .define [ Object ], ({ name, run, when: _when = [] }) ->
         selector = @selector
 
-        local = @conditions.closure conditions
-        parent = @athena.conditions.closure conditions
-        names = parent.map ( entry ) -> entry.name
+        local = @conditions.closure _when
+        parent = 
+          @athena.conditions
+            .closure _when
+            .map ( entry ) -> entry.name
+        condition = "#{name}:has-targets"
 
-        rules = [ names... ]
-
-        target = "#{name}:has-targets"
         @athena.conditions.condition {
-          name: target
+          name: condition
           run: ( state ) ->
             select selector, state, ( collection ) ->
               check collection, { state, closure: local }, ( result ) -> result
         }
-        rules.push target
 
         @athena.engine.rules[ name ] =
           name: name
-          when: rules
+          when: [ parent..., condition ]
           run: ( state ) ->
             select selector, state, ( collection ) ->
-              context = { state, closure: local, action }
+              context = { state, closure: local, run }
               process collection, context, ( result ) -> result
 
         @athena
@@ -91,7 +90,7 @@ class Aggregator
       .define [ tuple 2 ], ([ name, run ]) ->
         @action { name, run }
 
-      .define [ tuple 3 ], ([ name, conditions, run ]) ->
-        @action { name, run, when: conditions }
+      .define [ tuple 3 ], ([ name, _when, run ]) ->
+        @action { name, run, when: _when }
 
 export default Aggregator
