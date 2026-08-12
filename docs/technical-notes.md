@@ -33,3 +33,38 @@ Conditions can be logically negated by prefixing the condition name with `!` whe
 ### Fluent Coding Style
 
 Athena provides a chainable API for registering conditions, actions, and rules. Core methods like `condition`, `action`, and `rules` always return the primary engine instance. This pattern enables creators to configure the engine within a single contiguous block.
+
+### Iterative Rules and the Aggregator Macro Pattern
+
+Athena's core engine evaluates rules against a global `state` snapshot. However, many real-world rule sets need to perform element-wise transformations or validations over collections of items based on a combination of global state conditions and item-level predicates.
+
+To support iterative rules without complicating Athena's core engine or evaluator classes, Athena introduces the `.each(selector)` macro pattern via the `Aggregator` class.
+
+#### The Macro Expansion Pattern
+
+Rather than baking collection-handling logic into `Athena` or its evaluator classes (`SyncEvaluator` / `AsyncEvaluator`), `Aggregator` acts as a **macro expander**. When an `.each(selector).action(...)` rule is defined, `Aggregator` compiles it down into standard Athena primitives:
+
+1. **Sub-rule Condition (`#{name}:has-targets`)**: Registers a global condition on `Athena` that evaluates whether at least one item in the selected collection satisfies the local item conditions (`local`).
+2. **Engine Rule (`name`)**: Registers a standard rule on the main `Athena` engine whose `when` list combines the parent global condition names (`parent`) with the generated `has-targets` condition name (`[ parent..., condition ]`).
+3. **Execution Callback**: When the rule fires, it selects items and runs a sequential iteration process over items that satisfy the local item conditions.
+
+This macro pattern is a powerful architectural technique in Athena. Beyond `.each`, the same pattern can be used to construct other specialized control flow abstractions—such as threshold gates, batch operations, or map-reduce flows—that would otherwise require tedious manual bookkeeping.
+
+#### Design Alternatives and Trade-offs
+
+* **Alternative A: Extending Engine Evaluators Directly**
+  * *Approach*: Modify `SyncEvaluator` and `AsyncEvaluator` to natively recognize array targets and manage element-wise loops.
+  * *Why Rejected*: Pollutes core evaluators with target-element binding, iteration state, and collection-slicing logic. It breaks the fundamental contract that `Evaluator` operates purely on a snapshot of a `state` object, compromising engine simplicity.
+
+* **Alternative B: Generator-Based Condition & Rule Abstractions**
+  * *Approach*: Have conditions and rules return generators (or async generators) to yield values, stepping through evaluation to abstract away the mechanics of rule resolution.
+  * *Why Rejected*:
+    * **Performance Overhead**: Allocating generator state machine objects for every condition predicate and action pass during evaluation cycles.
+    * **Loss of Zero-Tick Synchronous Execution**: Generator delegation requires runner machinery (such as `yield from` or generator iteration loops). By contrast, Athena's `deferrable` combinator handles thenables with 0-tick microtask overhead for synchronous functions, preserving maximum execution speed for `SyncEvaluator`.
+
+#### Internal Domain Abstractions and Combinators
+
+To keep the `Aggregator` implementation clean and maintainable:
+
+* **`deferrable` Combinator**: Wraps functions to check for thenables (`result?.then`), invoking callbacks synchronously for immediate values or via `.then()` for Promises while preserving `this` (`@`) context and function arity.
+* **`target` (`{ item, state }`) & `context` (`{ state, closure, run }`)**: Encapsulates item/state pairs and loop context into domain objects, keeping internal helper functions (`test`, `execute`, `evaluate`, `check`, `process`) capped at a maximum of 2 parameters with argument destructuring.

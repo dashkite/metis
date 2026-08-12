@@ -2,15 +2,19 @@ import Generic from "@dashkite/generic"
 import { tuple, deferrable } from "./helpers.js"
 import Conditions from "./conditions.js"
 
+# evaluates a single condition predicate against an item target
 test = deferrable ({ item, state }, entry ) ->
   entry.predicate.call item, state
 
+# executes an action function against an item target
 execute = deferrable ({ item, state }, run ) ->
   run.call item, state
 
+# resolves the item collection from state using the selector function
 select = deferrable ( selector, state ) ->
   selector.call state, state
 
+# tests whether all conditions in a closure pass for a target item
 evaluate = deferrable ( target, [ entry, rest... ]) ->
   if entry?
     test target, entry, ( passed ) ->
@@ -21,6 +25,7 @@ evaluate = deferrable ( target, [ entry, rest... ]) ->
   else
     true
 
+# tests whether at least one item in a collection satisfies local conditions
 check = deferrable ([ item, rest... ], context ) ->
   if item?
     target = { item, state: context.state }
@@ -32,6 +37,7 @@ check = deferrable ([ item, rest... ], context ) ->
   else
     false
 
+# sequentially runs an action on all items in a collection matching conditions
 process = deferrable ([ item, rest... ], context ) ->
   if item?
     target = { item, state: context.state }
@@ -44,6 +50,7 @@ process = deferrable ([ item, rest... ], context ) ->
   else
     return
 
+# Aggregator compiles collection rules (.each) down to Athena primitives
 class Aggregator
 
   constructor: ( @athena, @selector ) ->
@@ -60,6 +67,7 @@ class Aggregator
   action: do ->
     ( Generic.make "Aggregator::action" )
 
+      # expands an iterative action into a has-targets condition and engine rule
       .define [ Object ], ({ name, run, when: _when = [] }) ->
         selector = @selector
 
@@ -70,13 +78,17 @@ class Aggregator
             .map ( entry ) -> entry.name
         condition = "#{name}:has-targets"
 
+        # sub-rule condition checking if any item matches local conditions
         @athena.conditions.condition {
           name: condition
           run: ( state ) ->
             select selector, state, ( collection ) ->
-              check collection, { state, closure: local }, ( result ) -> result
+              check collection, 
+                { state, closure: local }, 
+                ( result ) -> result
         }
 
+        # primary engine rule combining parent conditions with has-targets
         @athena.engine.rules[ name ] =
           name: name
           when: [ parent..., condition ]
