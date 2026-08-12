@@ -328,13 +328,12 @@ athena = Athena.make()
   .each(-> @cart)
     # Local item conditions (@ = item)
     .condition([ "is-affordable", (state) -> @price <= state.remainingBudget ])
-    .condition([ "in-stock", -> @quantity > 0 ])
     .action([
       "approve-item"
-      # Combines global condition "store-is-open" and local item conditions
-      [ "store-is-open", "is-affordable", "in-stock" ]
+      # Combines global condition "store-is-open" and local item condition
+      [ "store-is-open", "is-affordable" ]
       ( state ) ->
-        @status = "approved"
+        state.order.push { id: @id, price: @price }
         state.remainingBudget -= @price
     ])
 
@@ -342,11 +341,11 @@ state =
   isOpen: true
   remainingBudget: 50
   cart: [
-    { id: "a", price: 30, quantity: 1, status: "pending" }
-    { id: "b", price: 40, quantity: 2, status: "pending" }
-    { id: "c", price: 20, quantity: 1, status: "pending" }
+    { id: "a", price: 30 }
+    { id: "b", price: 40 }
+    { id: "c", price: 20 }
   ]
+  order: []
 
 finalState = athena.run state, mode: "sync"
 ```
-

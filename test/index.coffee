@@ -17,7 +17,11 @@ do ->
         input = { forecast: "partly sunny" }
         rules = Athena.make()
           .condition([ "weather is good", -> /sunny/.test @forecast ])
-          .action([ "go for a walk", [ "weather is good" ], -> @activity = "walk" ])
+          .action [
+            "go for a walk"
+            [ "weather is good" ]
+            -> @activity = "walk"
+          ]
         result = await resolveAsync rules.start input
         assert.equal "walk", result.activity
 
@@ -64,7 +68,9 @@ do ->
           .condition([ "b", -> @b ])
           .action([ "c", [ "b" ], -> @c = true ])
         
-        result = await resolveAsync engine2.start input, { delegator: engine1.start input }
+        result = await resolveAsync engine2.start input, {
+          delegator: engine1.start input
+        }
         assert.equal true, result.c
     ]
 
@@ -73,7 +79,11 @@ do ->
         input = { forecast: "partly sunny" }
         rules = Athena.make()
           .condition([ "weather is good", -> /sunny/.test @forecast ])
-          .action([ "go for a walk", [ "weather is good" ], -> @activity = "walk" ])
+          .action [
+            "go for a walk"
+            [ "weather is good" ]
+            -> @activity = "walk"
+          ]
         result = await resolveAsync rules.start input, AsyncEvaluator
         assert.equal "walk", result.activity
 
@@ -120,7 +130,9 @@ do ->
           .condition([ "b", -> @b ])
           .action([ "c", [ "b" ], -> @c = true ])
         
-        result = await resolveAsync engine2.start input, AsyncEvaluator, engine1.start input, AsyncEvaluator
+        delegator = engine1.start input, AsyncEvaluator
+        result =
+          await resolveAsync engine2.start input, AsyncEvaluator, delegator
         assert.equal true, result.c
     ]
 
@@ -129,7 +141,11 @@ do ->
         input = { forecast: "partly sunny" }
         rules = Athena.make()
           .condition([ "weather is good", -> /sunny/.test @forecast ])
-          .action([ "go for a walk", [ "weather is good" ], -> @activity = "walk" ])
+          .action [
+            "go for a walk"
+            [ "weather is good" ]
+            -> @activity = "walk"
+          ]
         result = rules.run input, SyncEvaluator
         assert.equal "walk", result.activity
 
@@ -186,8 +202,15 @@ do ->
       test "simple rules", ->
         input = { forecast: "partly sunny" }
         rules = Athena.make()
-          .condition([ "weather is good", -> Promise.resolve /sunny/.test @forecast ])
-          .action([ "go for a walk", [ "weather is good" ], -> Promise.resolve().then => @activity = "walk" ])
+          .condition [
+            "weather is good"
+            -> Promise.resolve /sunny/.test @forecast
+          ]
+          .action [
+            "go for a walk"
+            [ "weather is good" ]
+            -> Promise.resolve().then => @activity = "walk"
+          ]
         result = await rules.run input
         assert.equal "walk", result.activity
 
@@ -195,7 +218,11 @@ do ->
         input = { status: "bad" }
         engine = Athena.make()
           .condition([ "good", -> Promise.resolve @status == "good" ])
-          .action([ "fix", [ "!good" ], -> Promise.resolve().then => @status = "good" ])
+          .action [
+            "fix"
+            [ "!good" ]
+            -> Promise.resolve().then => @status = "good"
+          ]
         result = await engine.run input
         assert.equal "good", result.status
 
@@ -245,8 +272,15 @@ do ->
       test "simple rules", ->
         input = { forecast: "partly sunny" }
         rules = Athena.make()
-          .condition([ "weather is good", -> Promise.resolve /sunny/.test @forecast ])
-          .action([ "go for a walk", [ "weather is good" ], -> Promise.resolve().then => @activity = "walk" ])
+          .condition [
+            "weather is good"
+            -> Promise.resolve /sunny/.test @forecast
+          ]
+          .action [
+            "go for a walk"
+            [ "weather is good" ]
+            -> Promise.resolve().then => @activity = "walk"
+          ]
         result = await rules.run input, AsyncEvaluator
         assert.equal "walk", result.activity
 
@@ -254,7 +288,11 @@ do ->
         input = { status: "bad" }
         engine = Athena.make()
           .condition([ "good", -> Promise.resolve @status == "good" ])
-          .action([ "fix", [ "!good" ], -> Promise.resolve().then => @status = "good" ])
+          .action [
+            "fix"
+            [ "!good" ]
+            -> Promise.resolve().then => @status = "good"
+          ]
         result = await engine.run input, AsyncEvaluator
         assert.equal "good", result.status
 
@@ -304,115 +342,117 @@ do ->
       test "basic array transformation & transfer", ->
         input =
           inbox: [
-            { id: 1, text: "alpha", processed: false }
-            { id: 2, text: "beta", processed: false }
+            { id: 1, text: "alpha" }
+            { id: 2, text: "beta" }
           ]
           outbox: []
         
         engine = Athena.make()
           .each(-> @inbox)
-            .condition([ "unprocessed", -> !@processed ])
-            .action([
+            .action [
               "process"
-              [ "unprocessed" ]
               ( state ) ->
-                @processed = true
                 state.outbox.push
                   id: @id
                   transformed: @text.toUpperCase()
-            ])
+            ]
 
         result = engine.run input, mode: "sync"
         assert.equal 2, result.outbox.length
         assert.equal "ALPHA", result.outbox[0].transformed
         assert.equal "BETA", result.outbox[1].transformed
-        assert.equal true, result.inbox[0].processed
-        assert.equal true, result.inbox[1].processed
 
       test "combining global state conditions and local item conditions", ->
         input =
           isOpen: true
           remainingBudget: 50
           cart: [
-            { id: "a", price: 30, status: "pending" }
-            { id: "b", price: 40, status: "pending" }
-            { id: "c", price: 20, status: "pending" }
+            { id: "a", price: 30 }
+            { id: "b", price: 40 }
+            { id: "c", price: 20 }
           ]
+          order: []
 
         engine = Athena.make()
           # Global state condition: checks @isOpen on state (@ = state)
           .condition([ "store-open", -> @isOpen ])
 
           .each(-> @cart)
-            # Local item condition: checks @price <= state.remainingBudget (@ = item)
-            .condition([ "affordable", ( state ) -> @price <= state.remainingBudget ])
-            .condition([ "pending", -> @status == "pending" ])
-            .action([
+            # Local item condition: checks @price <= state.remainingBudget
+            .condition [
+              "affordable"
+              ( state ) -> @price <= state.remainingBudget
+            ]
+            .action [
               "purchase"
-              [ "store-open", "affordable", "pending" ]
+              [ "store-open", "affordable" ]
               ( state ) ->
-                @status = "purchased"
+                state.order.push { id: @id, price: @price }
                 state.remainingBudget -= @price
-            ])
+            ]
 
         result = engine.run input, mode: "sync"
         # Item 'a' ($30) approved first -> budget remaining becomes $20
         # Item 'b' ($40) is not affordable ($40 > $20)
         # Item 'c' ($20) approved -> budget remaining becomes $0
-        assert.equal "purchased", result.cart[0].status
-        assert.equal "pending", result.cart[1].status
-        assert.equal "purchased", result.cart[2].status
+        assert.equal 2, result.order.length
+        assert.equal "a", result.order[0].id
+        assert.equal "c", result.order[1].id
         assert.equal 0, result.remainingBudget
 
       test "negated local item conditions", ->
         input =
           items: [
-            { id: 1, done: true }
-            { id: 2, done: false }
+            { id: 1, flagged: true }
+            { id: 2, flagged: false }
           ]
+          approved: []
 
         engine = Athena.make()
           .each(-> @items)
-            .condition([ "done", -> @done ])
-            .action([
-              "mark-done"
-              [ "!done" ]
-              -> @done = true
-            ])
+            .condition([ "flagged", -> @flagged ])
+            .action [
+              "approve"
+              [ "!flagged" ]
+              ( state ) ->
+                state.approved.push @id
+            ]
 
         result = engine.run input, mode: "sync"
-        assert.equal true, result.items[0].done
-        assert.equal true, result.items[1].done
+        assert.equal 1, result.approved.length
+        assert.equal 2, result.approved[0]
 
       test "async conditions in engine and aggregator", ->
         input =
           isOpen: true
           remainingBudget: 50
           cart: [
-            { id: "a", price: 30, status: "pending" }
-            { id: "b", price: 40, status: "pending" }
+            { id: "a", price: 30 }
+            { id: "b", price: 40 }
           ]
+          order: []
 
         engine = Athena.make()
           .condition([ "store-open", -> Promise.resolve(@isOpen) ])
 
           .each(-> @cart)
-            .condition([ "affordable", ( state ) -> Promise.resolve(@price <= state.remainingBudget) ])
-            .condition([ "pending", -> Promise.resolve(@status == "pending") ])
-            .action([
+            .condition [
+              "affordable"
+              ( state ) -> Promise.resolve @price <= state.remainingBudget
+            ]
+            .action [
               "purchase"
-              [ "store-open", "affordable", "pending" ]
+              [ "store-open", "affordable" ]
               ( state ) ->
-                @status = "purchased"
+                state.order.push { id: @id, price: @price }
                 state.remainingBudget -= @price
-            ])
+            ]
 
         result = await engine.run input
-        assert.equal "purchased", result.cart[0].status
-        assert.equal "pending", result.cart[1].status
+        assert.equal 1, result.order.length
+        assert.equal "a", result.order[0].id
         assert.equal 20, result.remainingBudget
     ]
   ]
 
   process.exit if success then 0 else 1
-

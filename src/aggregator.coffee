@@ -25,28 +25,39 @@ evaluate = deferrable ( target, [ entry, rest... ]) ->
   else
     true
 
-# tests whether at least one item in a collection satisfies local conditions
+# tests whether at least one unprocessed item satisfies local conditions
 check = deferrable ([ item, rest... ], context ) ->
-  if item?
-    target = { item, state: context.state }
-    evaluate target, context.closure, ( passed ) ->
-      if passed
-        true
-      else
-        check rest, context, ( result ) -> result
+  if context.seen.size == context.length
+    false
+  else if item?
+    index = context.index++
+    if (! context.seen.has index)
+      target = { item, state: context.state }
+      evaluate target, context.closure, ( passed ) ->
+        if passed
+          true
+        else
+          check rest, context, ( result ) -> result
+    else
+      check rest, context, ( result ) -> result
   else
     false
 
-# sequentially runs an action on all items in a collection matching conditions
+# sequentially runs an action on unprocessed items matching conditions
 process = deferrable ([ item, rest... ], context ) ->
   if item?
-    target = { item, state: context.state }
-    evaluate target, context.closure, ( passed ) ->
-      if passed
-        execute target, context.run, ->
+    index = context.index++
+    if (! context.seen.has index)
+      target = { item, state: context.state }
+      evaluate target, context.closure, ( passed ) ->
+        if passed
+          context.seen.add index
+          execute target, context.run, ->
+            process rest, context, ( result ) -> result
+        else
           process rest, context, ( result ) -> result
-      else
-        process rest, context, ( result ) -> result
+    else
+      process rest, context, ( result ) -> result
   else
     return
 
@@ -83,9 +94,11 @@ class Aggregator
           name: condition
           run: ( state ) ->
             select selector, state, ( collection ) ->
-              check collection, 
-                { state, closure: local }, 
-                ( result ) -> result
+              state.__ ?= {}
+              seen = ( state.__[ name ] ?= new Set() )
+              length = collection.length
+              context = { state, closure: local, seen, index: 0, length }
+              check collection, context, ( result ) -> result
         }
 
         # primary engine rule combining parent conditions with has-targets
@@ -94,7 +107,10 @@ class Aggregator
           when: [ parent..., condition ]
           run: ( state ) ->
             select selector, state, ( collection ) ->
-              context = { state, closure: local, run }
+              state.__ ?= {}
+              seen = ( state.__[ name ] ?= new Set() )
+              length = collection.length
+              context = { state, closure: local, run, seen, index: 0, length }
               process collection, context, ( result ) -> result
 
         @athena
