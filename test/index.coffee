@@ -356,11 +356,43 @@ do ->
                   id: @id
                   transformed: @text.toUpperCase()
             ]
+            .parent
 
         result = engine.run input, mode: "sync"
         assert.equal 2, result.outbox.length
         assert.equal "ALPHA", result.outbox[0].transformed
         assert.equal "BETA", result.outbox[1].transformed
+
+      test "defining multiple chained actions on a single aggregator", ->
+        input =
+          items: [
+            { id: 1 }
+            { id: 2 }
+          ]
+          forward: []
+          reverse: []
+
+        engine = Athena.make()
+          .each(-> @items)
+            .action([
+              "action-forward"
+              ( state ) ->
+                state.forward.push @id
+            ])
+            .action([
+              "action-reverse"
+              ( state ) ->
+                state.reverse.unshift @id
+            ])
+            .parent
+
+        result = engine.run input, mode: "sync"
+        assert.equal 2, result.forward.length
+        assert.equal 1, result.forward[0]
+        assert.equal 2, result.forward[1]
+        assert.equal 2, result.reverse.length
+        assert.equal 2, result.reverse[0]
+        assert.equal 1, result.reverse[1]
 
       test "combining global state conditions and local item conditions", ->
         input =
@@ -390,6 +422,7 @@ do ->
                 state.order.push { id: @id, price: @price }
                 state.remainingBudget -= @price
             ]
+            .parent
 
         result = engine.run input, mode: "sync"
         # Item 'a' ($30) approved first -> budget remaining becomes $20
@@ -417,6 +450,7 @@ do ->
               ( state ) ->
                 state.approved.push @id
             ]
+            .parent
 
         result = engine.run input, mode: "sync"
         assert.equal 1, result.approved.length
@@ -447,6 +481,7 @@ do ->
                 state.order.push { id: @id, price: @price }
                 state.remainingBudget -= @price
             ]
+            .parent
 
         result = await engine.run input
         assert.equal 1, result.order.length

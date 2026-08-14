@@ -64,7 +64,7 @@ process = deferrable ([ item, rest... ], context ) ->
 # Aggregator compiles collection rules (.each) down to Athena primitives
 class Aggregator
 
-  constructor: ( @athena, @selector ) ->
+  constructor: ( @parent, @selector ) ->
     @conditions = new Conditions()
 
   conditions: ( dictionary ) ->
@@ -84,13 +84,13 @@ class Aggregator
 
         local = @conditions.closure _when
         parent = 
-          @athena.conditions
+          @parent.conditions
             .closure _when
             .map ( entry ) -> entry.name
         condition = "#{name}:has-targets"
 
         # sub-rule condition checking if any item matches local conditions
-        @athena.conditions.condition {
+        @parent.conditions.condition {
           name: condition
           run: ( state ) ->
             select selector, state, ( collection ) ->
@@ -102,7 +102,7 @@ class Aggregator
         }
 
         # primary engine rule combining parent conditions with has-targets
-        @athena.engine.rules[ name ] =
+        @parent.engine.rules[ name ] =
           name: name
           when: [ parent..., condition ]
           run: ( state ) ->
@@ -113,7 +113,7 @@ class Aggregator
               context = { state, closure: local, run, seen, index: 0, length }
               process collection, context, ( result ) -> result
 
-        @athena
+        @
 
       .define [ tuple 2 ], ([ name, run ]) ->
         @action { name, run }
